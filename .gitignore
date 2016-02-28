@@ -1,0 +1,13 @@
+*.o
+*.so
+*.pc
+*.la
+*.lo
+*.swp
+*~
+*.sig
+*.tar.*
+*.announce
+*.patch
+*.rej
+*.trs

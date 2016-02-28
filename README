@@ -1,0 +1,84 @@
+liblinevents
+============
+
+Copyright (c) 2015-2016 Vladimir Kondratyev <wulf@cicgroup.ru>
+
+The purpose of this shim library is to provide linux events API on
+the *BSD family of operating systems. The library uses kqueue(2)
+to monitor timers, signals and file descriptors activity.
+
+Following APIs are suported:
+
+- epoll
+- eventfd
+- timerfd
+- signalfd
+
+
+
+Requirements
+------------
+
+- clang(gcc);
+- FreeBSD
+
+
+
+Downloading
+-----------
+
+This project does not have a special home page yet. The source
+code and the issue tracker are hosted on Github:
+
+  https://github.com/wulf7/liblinevents
+
+
+
+Building
+--------
+
+Building from a git snaphost is as simple as:
+
+  $ make
+
+
+
+Testing
+-------
+
+After you build the library, you can run tests to ensure that
+everything works in your system:
+
+  $ make test
+
+At current time it does not pass all tests so can be considered
+useless.
+
+
+
+Using
+-----
+
+To use the library, all you need to do is to link your application
+with it (adding -llinevents to LDFLAGS works in almost all cases).
+Of course, you will need to have include (-I) and linker (-L)
+directories to be properly set in your project.
+
+
+
+Limitations
+-----------
+
+Its not possible to implement eventfd, timerfd and signalfd
+entirely in userspace so this library intended to prototype porting
+only. Use POSIX, libevent or kqueue for real work.
+
+Due to presence of broker thread, there is small delay between
+changing state of event and ablility to read from and write to
+its file descriptor so intensive usage is extremely racy especialy
+in non-blocking mode.
+
+In most cases I recomend you to not install this library on
+default include and library paths e.g. /usr/local/include and
+/usr/local/lib as some 3-rd party software prefers to use
+linux event API rather than POSIX or BSD kqueue.
