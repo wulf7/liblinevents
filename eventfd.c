@@ -122,7 +122,7 @@ eventfd_kevent_handler(event_t *ev, const struct kevent *ke)
 	DBG(ev, "kevent: write to %"PRIuPTR, ke->ident);
 	/* Clear writebuf on partial write */
 	if (ke->data != sizeof(eventfd_t)) {
-		DBG(ev, "invalid data in writebuf: %lu bytes. Skipped",
+		DBG(ev, "invalid data in writebuf: %"PRIiPTR" bytes. Skipped",
 		    ke->data);
 		unblock_write(ev);
 		return;

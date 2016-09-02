@@ -300,9 +300,9 @@ timerfd_settime(int fd, int flags, const struct itimerspec *value,
 	    mem_valid(ovalue, sizeof(struct itimerspec)) == -1)
 		return (-1);
 
-	LOG(1, "value = { .it_value = {%ld, %ld}, .it_interval = {%ld, %ld}}",
-	    value->it_value.tv_sec,  value->it_value.tv_nsec,
-	    value->it_interval.tv_sec, value->it_interval.tv_nsec);
+	LOG(1, "value = { .it_value = {%jd, %ld}, .it_interval = {%jd, %ld}}",
+	    (intmax_t)value->it_value.tv_sec,  value->it_value.tv_nsec,
+	    (intmax_t)value->it_interval.tv_sec, value->it_interval.tv_nsec);
 
 	if (value->it_interval.tv_nsec >= 1000000000 ||
 	    value->it_interval.tv_nsec < 0 ||
