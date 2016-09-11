@@ -157,10 +157,10 @@ siginfo_to_signalfd(const siginfo_t *si, struct signalfd_siginfo *ssi)
 	ssi->ssi_uid =		si->si_uid;
 	ssi->ssi_fd =		-1;	/* Linux specific */
 	ssi->ssi_int =		si->si_value.sival_int;
-	ssi->ssi_ptr =		(uint64_t)si->si_value.sival_ptr;
+	ssi->ssi_ptr =		(uint64_t)(uintptr_t)si->si_value.sival_ptr;
 	ssi->ssi_utime =	0;	/* Linux specific */
 	ssi->ssi_stime =	0;	/* Linux specific */
-	ssi->ssi_addr =		(uint64_t)si->si_addr;
+	ssi->ssi_addr =		(uint64_t)(uintptr_t)si->si_addr;
 	ssi->ssi_status =	si->si_status;
 	ssi->ssi_band =		si->si_band;
 	ssi->ssi_trapno =	si->si_trapno;
