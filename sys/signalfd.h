@@ -37,7 +37,8 @@ struct signalfd_siginfo {
 };
 
 __BEGIN_DECLS
-int signalfd(int fd, const sigset_t *set, int flags) __THROW __nonnull ((2));
+int signalfd(int fd, const sigset_t *set, int flags)
+    __THROW __attribute__((nonnull(2)));
 __END_DECLS
 
 #endif /* _LINEVENTS_SIGNALFD_H */
