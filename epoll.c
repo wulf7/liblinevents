@@ -283,31 +283,26 @@ kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 	}
 }
 
-#ifdef PEDANTIC_CHECKS
 /*
- * Test if event exists
+ * Test if event registered. Kevent filter flags are OR-ed on re-registration
+ * so try to register new event with ident set to the same value and flags set
+ * to zero. This overwrites fflags, data and udata fields making them unusable.
  */
 static int
-epoll_test_event(int epfd, int fd, int filter)
+epoll_kqfd_register(int epfd, struct kevent *ev)
 {
 	struct kevent kev;
 	int error, save_errno;
 
 	save_errno = errno;
 
-	EV_SET(&kev, fd, filter, 0, 0, 0, 0);
+	EV_SET(&kev, ev->ident, ev->filter, 0, 0, 0, 0);
 
 	error = kevent(epfd, &kev, 1, NULL, 0, NULL);
-	if (error == 0) {
-		error = -1;
-		errno = EEXIST;
-	} else if (error < 0 && errno == ENOENT) {
-		error = 0;
-		errno = save_errno;
-	}
+	error = error < 0 ? errno : 0;
+	errno = save_errno;
 	return (error);
 }
-#endif /* PEDANTIC_CHECKS */
 
 /*
  * Load epoll filter, convert it to kevent filter
@@ -337,6 +332,14 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 		return (-1);
 	}
 
+	if (op != EPOLL_CTL_DEL) {
+		kev_flags = EV_ADD | EV_ENABLE;
+		error = epoll_to_kevent(epfd, fd, event,
+		    &kev_flags, kev, &nchanges);
+		if (error != 0)
+			return (-1);
+	}
+
 	switch (op) {
 	case EPOLL_CTL_MOD:
 		error = epoll_delete_all_events(epfd, fd);
@@ -344,24 +347,21 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 			errno = error;
 			return (-1);
 		}
-
-		kev_flags = EV_ADD | EV_ENABLE;
 		break;
 
 	case EPOLL_CTL_ADD:
-#ifdef PEDANTIC_CHECKS
-		if ((event->events & EPOLL_EVRD) != 0) {
-			error = epoll_test_event(epfd, fd, EVFILT_READ);
-			if (error)
-				return (-1);
+		/*
+		 * kqueue_register() return ENOENT if event does not exists
+		 * and the EV_ADD flag is not set.
+		 */
+		kev[0].flags &= ~EV_ADD;
+		error = epoll_kqfd_register(epfd, &kev[0]);
+		if (error != ENOENT) {
+			errno = EEXIST;
+			return (-1);
 		}
-		if ((event->events & EPOLL_EVWR) != 0) {
-			error = epoll_test_event(epfd, fd, EVFILT_WRITE);
-			if (error)
-				return (-1);
-		}
-#endif /* PEDANTIC_CHECKS */
-		kev_flags = EV_ADD | EV_ENABLE;
+		error = 0;
+		kev[0].flags |= EV_ADD;
 		break;
 
 	case EPOLL_CTL_DEL:
@@ -376,10 +376,6 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 		errno = EINVAL;
 		return (-1);
 	}
-
-	error = epoll_to_kevent(epfd, fd, event, &kev_flags, kev, &nchanges);
-	if (error)
-		return (-1);
 
 	error = epoll_fd_install(fd, event->data);
 	if (error)
