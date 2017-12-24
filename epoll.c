@@ -224,6 +224,8 @@ epoll_to_kevent(int epfd, int fd, struct epoll_event *l_event, int *kev_flags,
 		*kev_flags |= EV_CLEAR;
 	if ((levents & EPOLLERR) != 0)
 		*kev_flags |= EV_ERROR;
+	if ((levents & EPOLLRDHUP) != 0)
+		*kev_flags |= EV_EOF;
 
 	/* flags related to what event is registered */
 	if ((levents & EPOLL_EVRD) != 0) {
@@ -271,6 +273,8 @@ kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 	switch (kevent->filter) {
 	case EVFILT_READ:
 		l_event->events = EPOLLIN|EPOLLRDNORM|EPOLLPRI;
+		if ((kevent->flags & EV_EOF) != 0)
+			l_event->events |= EPOLLRDHUP;
 	break;
 	case EVFILT_WRITE:
 		l_event->events = EPOLLOUT|EPOLLWRNORM;
