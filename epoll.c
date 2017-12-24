@@ -400,7 +400,7 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 	struct epoll_emuldata *emd;
 	struct timespec ts, *tsp;
 	struct kevent *kevp;
-	sigset_t oldsigmask;
+	sigset_t omask;
 	int error, count, i, fd;
 
 	if (maxevents <= 0 || maxevents > LINUX_MAX_EVENTS) {
@@ -427,7 +427,7 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 		return (-1);
 
 	if (uset != NULL) {
-		error = sigprocmask(SIG_SETMASK, uset, &oldsigmask);
+		error = sigprocmask(SIG_SETMASK, uset, &omask);
 		if (error != 0) {
 			free (kevp);
 			return (-1);
@@ -445,7 +445,7 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 
 	count = kevent(epfd, NULL, 0, kevp, maxevents, tsp);
 	if (uset != NULL)
-		sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
+		sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (count < 0) {
 #ifdef PEDANTIC_CHECKS
 		/* linux returns EINVAL on valid nonepoll fds */
