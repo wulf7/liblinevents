@@ -31,6 +31,7 @@
 #include <sys/errno.h>
 #include <sys/event.h>
 #include <sys/selinfo.h>
+#include <sys/stat.h>
 #include <sys/timespec.h>
 
 #include <assert.h>
@@ -310,13 +311,18 @@ epoll_kqfd_register(int epfd, struct kevent *ev)
 EXPORT int
 epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 {
+	struct stat st;
 	struct kevent kev[2];
 	int kev_flags;
 	int nchanges = 0;
 	int error;
 
-	if (fd_valid(epfd) == -1)
+	if (fstat(epfd, &st) < 0)
 		return (-1);
+	if (!S_ISFIFO(st.st_mode)) {
+		error = EINVAL;
+		return (-1);
+	}
 
 	if (fd_valid(fd) == -1)
 		return (-1);
@@ -393,6 +399,7 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 	struct epoll_emuldata *emd;
 	struct timespec ts, *tsp;
 	struct kevent *kevp;
+	struct stat st;
 	sigset_t omask;
 	int error, count, i, fd;
 
@@ -401,8 +408,12 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 		return (-1);
 	}
 
-	if (fd_valid(epfd) == -1)
+	if (fstat(epfd, &st) < 0)
 		return (-1);
+	if (!S_ISFIFO(st.st_mode)) {
+		error = EINVAL;
+		return (-1);
+	}
 
 	if (mem_valid(events, sizeof(struct epoll_event) * maxevents))
 		return (-1);
