@@ -270,14 +270,15 @@ kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 		return;
 	}
 
+	/* XXX EPOLLPRI, EPOLLHUP */
 	switch (kevent->filter) {
 	case EVFILT_READ:
-		l_event->events = EPOLLIN|EPOLLRDNORM|EPOLLPRI;
+		l_event->events = EPOLLIN;
 		if ((kevent->flags & EV_EOF) != 0)
 			l_event->events |= EPOLLRDHUP;
 	break;
 	case EVFILT_WRITE:
-		l_event->events = EPOLLOUT|EPOLLWRNORM;
+		l_event->events = EPOLLOUT;
 	break;
 	}
 }
