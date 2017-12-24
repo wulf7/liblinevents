@@ -339,14 +339,11 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 
 	switch (op) {
 	case EPOLL_CTL_MOD:
-		/*
-		 * We don't memorize which events were set for this FD
-		 * on this level, so just delete all we could have set:
-		 * EVFILT_READ and EVFILT_WRITE, ignoring any errors
-		 */
 		error = epoll_delete_all_events(epfd, fd);
-		if (error)
+		if (error) {
+			errno = error;
 			return (-1);
+		}
 
 		kev_flags = EV_ADD | EV_ENABLE;
 		break;
@@ -370,6 +367,9 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 	case EPOLL_CTL_DEL:
 		/* CTL_DEL means unregister this fd with this epoll */
 		error = epoll_delete_all_events(epfd, fd);
+		if (error)
+			errno = error;
+		error = error ? -1 : 0;
 		goto leave;
 
 	default:
@@ -504,14 +504,8 @@ epoll_delete_event(int epfd, int fd, int filter)
 	EV_SET(&kev, fd, filter, EV_DELETE | EV_DISABLE, 0, 0, 0);
 
 	error = kevent(epfd, &kev, 1, NULL, 0, NULL);
-
-	/*
-	 * here we ignore ENONT, because we don't keep track of events here
-	 */
-	if (error < 0 && errno == ENOENT) {
-		error = 0;
-		errno = save_errno;
-	}
+	error = error < 0 ? errno : 0;
+	errno = save_errno;
 	return (error);
 }
 
@@ -523,6 +517,6 @@ epoll_delete_all_events(int epfd, int fd)
 	error1 = epoll_delete_event(epfd, fd, EVFILT_READ);
 	error2 = epoll_delete_event(epfd, fd, EVFILT_WRITE);
 
-	/* report any errors we got */
-	return (error1 == 0 ? error2 : error1);
+	/* return 0 if at least one result positive */
+	return (error1 == 0 ? 0 : error2);
 }
