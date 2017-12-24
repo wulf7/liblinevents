@@ -132,7 +132,7 @@ epoll_fd_install(int fd, epoll_data_t udata)
 	if (pem.epoll == NULL) {
 		emd = malloc(EPOLL_SIZE(fd));
 		if (emd == NULL) {
-			error = -1;
+			error = errno;
 			goto leave;
 		}
 		emd->fdc = fd;
@@ -142,7 +142,7 @@ epoll_fd_install(int fd, epoll_data_t udata)
 		if (fd > emd->fdc) {
 			emd = realloc(emd, EPOLL_SIZE(fd));
 			if (emd == NULL) {
-				error = -1;
+				error = errno;
 				goto leave;
 			}
 			emd->fdc = fd;
@@ -249,8 +249,7 @@ epoll_to_kevent(int epfd, int fd, struct epoll_event *l_event, int *kev_flags,
 			    levents);
 		} else
 			LINUX_PEM_XUNLOCK(pem);
-		errno = EINVAL;
-		return (-1);
+		return (EINVAL);
 	}
 
 	return (0);
@@ -328,8 +327,8 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 
 	/* Linux disallows spying on himself */
 	if (epfd == fd) {
-		errno = EINVAL;
-		return (-1);
+		error = EINVAL;
+		goto leave0;
 	}
 
 	if (op != EPOLL_CTL_DEL) {
@@ -337,16 +336,14 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 		error = epoll_to_kevent(epfd, fd, event,
 		    &kev_flags, kev, &nchanges);
 		if (error != 0)
-			return (-1);
+			goto leave0;
 	}
 
 	switch (op) {
 	case EPOLL_CTL_MOD:
 		error = epoll_delete_all_events(epfd, fd);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
+		if (error != 0)
+			goto leave0;
 		break;
 
 	case EPOLL_CTL_ADD:
@@ -357,8 +354,8 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 		kev[0].flags &= ~EV_ADD;
 		error = epoll_kqfd_register(epfd, &kev[0]);
 		if (error != ENOENT) {
-			errno = EEXIST;
-			return (-1);
+			error = EEXIST;
+			goto leave0;
 		}
 		error = 0;
 		kev[0].flags |= EV_ADD;
@@ -367,24 +364,23 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 	case EPOLL_CTL_DEL:
 		/* CTL_DEL means unregister this fd with this epoll */
 		error = epoll_delete_all_events(epfd, fd);
-		if (error)
-			errno = error;
-		error = error ? -1 : 0;
-		goto leave;
+		goto leave0;
 
 	default:
-		errno = EINVAL;
-		return (-1);
+		error = EINVAL;
+		goto leave0;
 	}
 
 	error = epoll_fd_install(fd, event->data);
 	if (error)
-		return (-1);
+		goto leave0;
 
-	error = kevent(epfd, kev, nchanges, NULL, 0, NULL);
+	error = kevent(epfd, kev, nchanges, NULL, 0, NULL) < 0 ? errno : 0;
 
-leave:
-	return (error);
+leave0:
+	if (error)
+		errno = error;
+	return (error ? -1 : 0);
 }
 
 /*
