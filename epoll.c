@@ -215,12 +215,7 @@ epoll_to_kevent(int epfd, int fd, struct epoll_event *l_event, int *kev_flags,
 
 	/* flags related to how event is registered */
 	if ((levents & EPOLLONESHOT) != 0)
-#if defined (EV_DISPATCH) && defined(PEDANTIC_CHECKS)
-		/* one-shotness does not remove the epoll descriptor */
 		*kev_flags |= EV_DISPATCH;
-#else
-		*kev_flags |= EV_ONESHOT;
-#endif
 	if ((levents & EPOLLET) != 0)
 		*kev_flags |= EV_CLEAR;
 	if ((levents & EPOLLERR) != 0)
@@ -448,11 +443,9 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 	if (uset != NULL)
 		sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (count < 0) {
-#ifdef PEDANTIC_CHECKS
 		/* linux returns EINVAL on valid nonepoll fds */
 		if (errno == EBADF)
 			errno = EINVAL;
-#endif
 		goto leave;
 	}
 
