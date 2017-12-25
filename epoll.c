@@ -317,6 +317,10 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 	int nchanges = 0;
 	int error;
 
+	if (op != EPOLL_CTL_DEL &&
+	    mem_valid(event, sizeof(struct epoll_event)))
+		return (-1);
+
 	if (fstat(epfd, &st) < 0)
 		return (-1);
 	if (!S_ISFIFO(st.st_mode)) {
@@ -325,10 +329,6 @@ epoll_ctl (int epfd, int op, int fd, struct epoll_event *event)
 	}
 
 	if (fd_valid(fd) == -1)
-		return (-1);
-
-	if ((op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD) &&
-	    mem_valid(event, sizeof(struct epoll_event)))
 		return (-1);
 
 	/* Linux disallows spying on himself */
@@ -418,9 +418,6 @@ epoll_wait_common(int epfd, struct epoll_event *events, int maxevents,
 	if (mem_valid(events, sizeof(struct epoll_event) * maxevents))
 		return (-1);
 
-	if (uset != NULL && mem_valid(uset, sizeof(sigset_t)))
-		return (-1);
-
 	if (timeout < -1) {
 		errno = EINVAL;
 		return (-1);
@@ -492,6 +489,9 @@ EXPORT int
 epoll_pwait (int epfd, struct epoll_event *events, int maxevents, int timeout,
     const sigset_t *ss)
 {
+
+	if (ss != NULL && mem_valid(ss, sizeof(sigset_t)))
+		return (-1);
 
 	return (epoll_wait_common(epfd, events, maxevents, timeout, ss));
 }
